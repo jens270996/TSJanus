@@ -134,8 +134,8 @@ printSymmetryChecker filename (Just procId) =
      case parseProgram filename text of
        Left err   -> print err >> (exitWith $ ExitFailure 1)
        Right prog -> (if checkSymmetryId prog procId
-                     then print ("Procedure " ++ procId ++ " is time symmetric.\n")
-                     else print ("Procedure " ++ procId ++ " is not time symmetric.\n"))
+                     then print ("Procedure " ++ procId ++ " is time symmetric.")
+                     else print ("Procedure " ++ procId ++ " is not time symmetric."))
                       >> exitSuccess
 printSymmetryChecker _ _ = print "No procedure name supplied to check symmetry on" >> (exitWith $ ExitFailure 1)
 parseAndRun :: String -> EvalOptions -> IO ()
