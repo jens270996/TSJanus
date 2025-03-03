@@ -39,10 +39,14 @@ typeOfIntType (Int itype _) = itype
 typeOfIntType (Stack _)     = Unbound
 typeOfIntType (BoolT _)     = Unbound
 
-
+procedureId :: Ident -> String
+procedureId (Ident s _) = s
 -- Identifier
 data Ident =
   Ident String SourcePos
+
+equivIdent :: Ident -> Ident -> Bool
+equivIdent (Ident s _) (Ident s' _) = s == s'
 
 instance Eq Ident where
   (Ident name1 _) == (Ident name2 _) = name1 == name2
@@ -59,6 +63,16 @@ data Lval
     | Lookup Ident [Expr]
     deriving (Eq)
 
+equivLval :: Lval -> Lval -> Bool
+equivLval a b =
+            case a of
+            (Var i) ->
+              case b of (Var i') -> i == i'
+                        _ -> False
+            (Lookup i exprs) ->
+              case b of (Lookup i' exprs') -> i == i' && exprs `equivExprs` exprs'
+                        _ -> False
+            _ -> False
 -- Modification operators used in assignment
 data ModOp
     = AddEq -- +=
@@ -111,6 +125,30 @@ data Stmt
     | Debug     DebugType SourcePos
     deriving (Eq)
 
+equiv:: Stmt -> Stmt -> Bool
+equiv (Assign a b c _) (Assign a' b' c' _) = a==a' && b `equivLval` b' && c `equivExpr` c'
+equiv (If a b c d _) (If a' b' c' d' _) = a `equivExpr` a' && b `equivStmts` b' && c `equivStmts` c' && d `equivExpr` d'
+equiv (From a b c d _) (From a' b' c' d' _) = a `equivExpr` a' && b `equivStmts` b' && c `equivStmts` c' && d `equivExpr` d'
+equiv (Iterate a b c d e f _) (Iterate a' b' c' d' e' f' _) = a==a' && b `equivIdent` b' && c `equivExpr` c' && d `equivExpr` d' && e `equivExpr` e' && f `equivStmts` f'
+equiv (Push a b _) (Push a' b' _) = a `equivIdent` a' && b `equivIdent` b'
+equiv (Pop a b _) (Pop a' b' _) = a `equivIdent` a' && b `equivIdent` b'
+equiv (Local a b c _) (Local a' b' c' _) = a==a' && c==c' && b `equivStmts` b'
+equiv (Call a b _) (Call a' b' _) = a `equivIdent` a' && b==b'
+equiv (Uncall a b _) (Uncall a' b' _) = a `equivIdent` a' && b==b'
+equiv (ExtCall a b _) (ExtCall a' b' _) = a `equivIdent` a' && b==b'
+equiv (ExtUncall a b _) (ExtUncall a' b' _) = a `equivIdent` a' && b==b'
+equiv (UserError a _) (UserError a' _) = a==a'
+equiv (Swap a b _) (Swap a' b' _) = a `equivLval` a' && b `equivLval` b'
+equiv (Skip _) (Skip _ ) = True
+equiv (Prints a _) (Prints a' _) = a==a'
+equiv (Assert a _) (Assert a' _) = a `equivExpr` a'
+equiv (Debug a _) (Debug a' _) = a==a'
+equiv _ _ = False
+
+equivStmts:: [Stmt] -> [Stmt] -> Bool
+equivStmts stmts stmts' =
+  let zipped = zip stmts stmts'
+  in all (\(a,b) -> a `equiv` b) zipped
 data Argument
     = VarArg Ident
     | ArrayArg Ident [Ident]
@@ -137,6 +175,25 @@ data Expr
     | ArrayE   [Expr] SourcePos
     deriving (Eq)
 
+equivExpr:: Expr -> Expr -> Bool
+equivExpr (Number a _) (Number b _) = a ==b
+equivExpr (Boolean a _) (Boolean b _) = a ==b
+equivExpr (LV a _) (LV b _) = a `equivLval` b
+equivExpr (UnaryOp a _) (UnaryOp b _) = a ==b
+equivExpr (TypeCast a _) (TypeCast b _) = a ==b
+equivExpr (BinOp a b c) (BinOp a' b' c') = a ==a' && b `equivExpr` b' && c `equivExpr` c'
+equivExpr (Empty a _) (Empty a' _) = a `equivIdent` a'
+equivExpr (Top a _) (Top a' _) = a `equivIdent` a'
+equivExpr (Size a _) (Size a' _) = a `equivIdent` a'
+equivExpr (Nil _) (Nil _) = True
+equivExpr (ArrayE a _) (ArrayE b _) = a `equivExprs` b
+equivExpr _ _ = False
+
+
+equivExprs:: [Expr] -> [Expr] -> Bool
+equivExprs es es' =
+  let zipped = zip es es'
+  in all (\(a,b) -> a `equivExpr` b) zipped
 -- Declaration
 data Vdecl
     = Scalar DeclType Type Ident (Maybe Expr) SourcePos

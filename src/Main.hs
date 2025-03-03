@@ -4,11 +4,11 @@ import System.Exit
 import System.Timeout
 import Control.Monad
 import Data.List
-import Math.NumberTheory.Primes.Testing (isPrime)
 
 -- import Jana.ParserBasic
 import Jana.Parser
 import Jana.Eval (runProgram)
+import Jana.SymmetryChecker (checkSymmetryId)
 import Jana.Types (defaultOptions, EvalOptions(..), DebugMode(..), ModEval(..))
 import Jana.Invert
 import qualified Jana.JanusToC as JTC
@@ -20,6 +20,8 @@ data Options = Options
   , ast :: Bool
   , cCode  :: Bool
   , header :: Maybe String
+  , symmetricProcedure :: Maybe String
+  , checkSymmetry :: Bool
   , evalOpts :: EvalOptions }
 
 defaults :: Options
@@ -29,6 +31,8 @@ defaults = Options
   , ast = False
   , cCode = False
   , header = Nothing
+  , symmetricProcedure = Nothing
+  , checkSymmetry = False
   , evalOpts = defaultOptions }
 
 usage :: String
@@ -41,6 +45,7 @@ usage = "usage: jana [options] <file>\n\
         \  -c           print C++ program\n\
         \  -a           print program AST (useful for debugging)\n\
         \  -h=file.h    header files to be included in translation to C++\n\
+        \  -s=symmetricProcedure name of procedure to check symmetry on\n\
         \                 this header files is intended use with external functions\n\
         \  -d           interactive debug mode\n\
         \  -e           enter debug mode on error\n\
@@ -72,9 +77,9 @@ addOption opts@(Options { evalOpts = evalOptions }) "-p" =
 addOption opts@(Options { evalOpts = evalOptions }) ('-':'p':n) =
   case reads n of
     [(nVal, "")] ->
-      case isPrime $ toInteger nVal of
-        True -> return $ opts { evalOpts = evalOptions { modInt = (ModPrime nVal) } }
-        False -> Left "Non-prime given to -p option"
+      if isPrime nVal
+      then return $ opts { evalOpts = evalOptions { modInt = (ModPrime nVal) } }
+      else Left "Non-prime given to -p option"
     _            -> Left "Non-number given to -p option"
 addOption opts ('-':'t':time) =
   case reads time of
@@ -84,6 +89,7 @@ addOption opts "-a" = return opts { ast = True }
 addOption opts "-i" = return opts { invert = True }
 addOption opts "-c" = return opts { cCode = True }
 addOption opts ('-':'h':'=':headerfile) = return opts { header = Just headerfile }
+addOption opts ('-':'s':'=':symmetricProcedure) = return opts { symmetricProcedure = Just symmetricProcedure, checkSymmetry = True }
 addOption opts@(Options { evalOpts = evalOptions }) "-d" =
  return $ opts { evalOpts = evalOptions {runDebugger = DebugOn } }
 addOption opts@(Options { evalOpts = evalOptions }) "-e" =
@@ -122,6 +128,16 @@ printInvertedCcode filename headerfile =
        Left err   -> print err >> (exitWith $ ExitFailure 1)
        Right prog -> print $ JTC.formatProgram headerfile $ invertProgram prog
 
+printSymmetryChecker :: String -> Maybe String -> IO ()
+printSymmetryChecker filename (Just procId) =
+  do text <- loadFile filename
+     case parseProgram filename text of
+       Left err   -> print err >> (exitWith $ ExitFailure 1)
+       Right prog -> (if checkSymmetryId prog procId
+                     then print ("Procedure " ++ procId ++ " is time symmetric.\n")
+                     else print ("Procedure " ++ procId ++ " is not time symmetric.\n"))
+                      >> exitSuccess
+printSymmetryChecker _ _ = print "No procedure name supplied to check symmetry on" >> (exitWith $ ExitFailure 1)
 parseAndRun :: String -> EvalOptions -> IO ()
 parseAndRun filename evalOptions =
   do text <- loadFile filename
@@ -134,6 +150,7 @@ main = do args <- parseArgs
           case args of
             Just ([file], Options { cCode = True, invert = True, header = h }) -> printInvertedCcode file h
             Just ([file], Options { cCode = True, header = h }) -> printCcode file h
+            Just ([file], Options { symmetricProcedure=sp, checkSymmetry= True }) -> printSymmetryChecker file sp
             Just ([file], Options { ast = True }) -> printAST file
             Just ([file], Options { invert = True }) -> printInverted file
             Just ([file], opts) ->
@@ -143,3 +160,6 @@ main = do args <- parseArgs
                    Nothing -> exitWith $ ExitFailure 124
                    _       -> return ()
             _ -> putStrLn usage
+
+isPrime :: Int -> Bool
+isPrime k = (k > 1) && null [ x | x <- [2.. k-1], k `mod` x == 0]

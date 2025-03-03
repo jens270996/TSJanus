@@ -1,0 +1,45 @@
+// Reverse example
+// Computes reversal of an array.
+// The procedure reverse is time symmetric.
+
+procedure reverse(int xs[])
+    local int ys[size(xs)]
+    local int i=0
+    local int j=size(xs)-1
+
+    from i=0
+    loop
+    ys[j] += xs[i]
+    i+=1
+    j-=1
+    until i=size(xs)
+
+    xs <=> ys
+
+    from i=size(xs)
+    loop
+    j+=1
+    i-=1
+    ys[j] -= xs[i]
+    until i=0
+
+    delocal int j=size(xs)-1
+    delocal int i=0
+    delocal int ys[size(xs)]
+
+procedure main()
+    int xs[12]
+    xs[0]+=1
+    xs[1]+=2
+    xs[2]+=3
+    xs[3]+=4
+    xs[4]+=5
+    xs[5]+=6
+    xs[6]+=7
+    xs[7]+=8
+    xs[8]+=9
+    xs[9]+=10
+    xs[10]+=11
+    xs[11]+=12
+    call reverse(xs)
+

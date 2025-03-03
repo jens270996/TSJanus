@@ -22,7 +22,7 @@ module Jana.Types (
 
 import Control.Applicative
 import Prelude hiding (GT, LT, EQ)
-import Data.Bits
+import Data.Bits ((.&.),(.|.),xor,Bits (shiftL, shiftR))
 import Data.List (intercalate, genericSplitAt)
 import Data.IORef
 import qualified Data.Set as Set
@@ -31,7 +31,6 @@ import Control.Monad.Reader
 import Control.Monad.Except
 import Text.Printf (printf)
 import qualified Data.Map as Map
-import Math.NumberTheory.GCD (extendedGCD)
 import Data.Int
 import Data.Word
 
@@ -260,10 +259,9 @@ performOperation Div (JInt _) (JInt ival) _ pos | truthyInt ival =
 performOperation Div (JInt (JUnbound i1)) (JInt (JUnbound i2)) _ _ =
   do flag <- asks (modInt . evalOptions)
      case flag of
-       (ModPrime n) -> return $ opFunc Mul (JUnbound) i1 (multInv i2 n)
+       (ModPrime n) -> return $ opFunc Mul (JUnbound) i1 (gcd i2 (toInteger n))
        _ -> return $ opFunc Div (JUnbound) i1 i2
   where
-    multInv a p = (\(_,i,_) -> i) $ extendedGCD a (toInteger p)
 performOperation SL (JInt ival)           (JInt shiftval)       _  _  =
   return $ opFunc SL (intValueToValueType ival) (unpackIntValue ival) (unpackIntValue shiftval)
 performOperation SR (JInt ival)           (JInt shiftval)       _  _  =
