@@ -46,3 +46,9 @@ Or, to run it directly using stack, use
 
     cd src/
     stack exec -- runhaskell Main.hs
+
+## Running the symmetry-checker
+To run the symmetry-checker on a procedure, on must pass the argument 
+`-s=symmetricProcedure` to the `jana` executable, along with the file containing the procedure to check.
+e.g. to check the procedure `reverse` in `examples/reverse.ja` run
+`cabal run -- jana -s=reverse examples/reverse.ja` which gives the following output: "Procedure reverse is time symmetric."
